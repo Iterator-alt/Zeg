@@ -20,6 +20,102 @@ import type {
 const DEFAULT_CENTER: [number, number] = [-98.7, 29.9];
 const DEFAULT_ZOOM = 14;
 
+// Custom draw styles compatible with MapLibre (using ["literal", [...]] for arrays)
+const drawStyles = [
+  // Polygon fill - active (being drawn)
+  {
+    id: 'gl-draw-polygon-fill-active',
+    type: 'fill',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'true']],
+    paint: {
+      'fill-color': '#fbb03b',
+      'fill-opacity': 0.2,
+    },
+  },
+  // Polygon fill - inactive
+  {
+    id: 'gl-draw-polygon-fill-inactive',
+    type: 'fill',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'false']],
+    paint: {
+      'fill-color': '#3bb2d0',
+      'fill-opacity': 0.2,
+    },
+  },
+  // Polygon outline - active
+  {
+    id: 'gl-draw-polygon-stroke-active',
+    type: 'line',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'true']],
+    paint: {
+      'line-color': '#fbb03b',
+      'line-width': 2,
+    },
+  },
+  // Polygon outline - inactive
+  {
+    id: 'gl-draw-polygon-stroke-inactive',
+    type: 'line',
+    filter: ['all', ['==', '$type', 'Polygon'], ['==', 'active', 'false']],
+    paint: {
+      'line-color': '#3bb2d0',
+      'line-width': 2,
+    },
+  },
+  // Line - active (using literal for dasharray)
+  {
+    id: 'gl-draw-line-active',
+    type: 'line',
+    filter: ['all', ['==', '$type', 'LineString'], ['==', 'active', 'true']],
+    paint: {
+      'line-color': '#fbb03b',
+      'line-width': 2,
+      'line-dasharray': ['literal', [0.2, 2]],
+    },
+  },
+  // Line - inactive
+  {
+    id: 'gl-draw-line-inactive',
+    type: 'line',
+    filter: ['all', ['==', '$type', 'LineString'], ['==', 'active', 'false']],
+    paint: {
+      'line-color': '#3bb2d0',
+      'line-width': 2,
+      'line-dasharray': ['literal', [0.2, 2]],
+    },
+  },
+  // Vertex points - active
+  {
+    id: 'gl-draw-point-active',
+    type: 'circle',
+    filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'vertex'], ['==', 'active', 'true']],
+    paint: {
+      'circle-radius': 6,
+      'circle-color': '#fbb03b',
+    },
+  },
+  // Vertex points - inactive
+  {
+    id: 'gl-draw-point-inactive',
+    type: 'circle',
+    filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'vertex'], ['==', 'active', 'false']],
+    paint: {
+      'circle-radius': 4,
+      'circle-color': '#3bb2d0',
+    },
+  },
+  // Midpoints
+  {
+    id: 'gl-draw-midpoint',
+    type: 'circle',
+    filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'midpoint']],
+    paint: {
+      'circle-radius': 3,
+      'circle-color': '#fbb03b',
+    },
+  },
+];
+
 interface MapProps {
   onParcelSelect: (parcel: ParcelDetail | null) => void;
   onConstraintsLoad: (constraints: ConstraintsResponse | null) => void;
@@ -121,7 +217,7 @@ export function Map({
     // Add navigation controls
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-    // Initialize draw control
+    // Initialize draw control with MapLibre-compatible styles
     const draw = new MapboxDraw({
       displayControlsDefault: false,
       controls: {
@@ -129,6 +225,7 @@ export function Map({
         trash: true,
       },
       defaultMode: 'simple_select',
+      styles: drawStyles,
     });
 
     map.addControl(draw as unknown as maplibregl.IControl, 'top-left');

@@ -10,7 +10,10 @@ import type {
   BuildableResponse,
 } from '../types/api';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// VITE_API_URL should be the backend's base URL (e.g., https://backend.railway.app)
+// We always append /api to ensure correct routing
+const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = backendUrl.endsWith('/api') ? backendUrl : `${backendUrl.replace(/\/$/, '')}/api`;
 
 class ApiError extends Error {
   status: number;
