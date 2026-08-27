@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     # API Settings
     api_title: str = "Buildable Land Analysis API"
     api_version: str = "1.0.0"
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000  # Railway sets PORT env var, uvicorn reads it directly
 
     # Data Prep Settings
     # Selected county for analysis
