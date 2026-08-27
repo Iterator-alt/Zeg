@@ -432,6 +432,9 @@ export function Map({
   }, [buildableResult]);
 
   const loadParcelsInView = async (map: maplibregl.Map) => {
+    // Guard: ensure map style is loaded before accessing sources
+    if (!map.isStyleLoaded()) return;
+
     const bounds = map.getBounds();
     const bbox: [number, number, number, number] = [
       bounds.getWest(),
@@ -449,7 +452,10 @@ export function Map({
   };
 
   const updateParcelsLayer = (map: maplibregl.Map, parcels: ParcelSummary[]) => {
-    const source = map.getSource('parcel-markers') as maplibregl.GeoJSONSource;
+    // Guard: ensure map style is loaded before accessing sources
+    if (!map.isStyleLoaded()) return;
+
+    const source = map.getSource('parcel-markers') as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
     const features: GeoJSON.Feature[] = parcels.map((p) => ({
@@ -472,13 +478,19 @@ export function Map({
   };
 
   const selectParcel = async (map: maplibregl.Map, parcelId: number) => {
+    // Guard: ensure map style is loaded before accessing sources
+    if (!map.isStyleLoaded()) {
+      console.warn('Map style not loaded yet, cannot select parcel');
+      return;
+    }
+
     try {
       // Get full parcel details
       const parcel = await getParcel(parcelId);
       onParcelSelect(parcel);
 
       // Update selected parcel layer
-      const selectedSource = map.getSource('selected-parcel') as maplibregl.GeoJSONSource;
+      const selectedSource = map.getSource('selected-parcel') as maplibregl.GeoJSONSource | undefined;
       if (selectedSource) {
         selectedSource.setData({
           type: 'Feature',
@@ -492,7 +504,7 @@ export function Map({
       onConstraintsLoad(constraints);
 
       // Update wetlands layer
-      const wetlandsSource = map.getSource('wetlands') as maplibregl.GeoJSONSource;
+      const wetlandsSource = map.getSource('wetlands') as maplibregl.GeoJSONSource | undefined;
       if (wetlandsSource) {
         wetlandsSource.setData({
           type: 'FeatureCollection',
@@ -505,7 +517,7 @@ export function Map({
       }
 
       // Update floodplains layer
-      const floodplainsSource = map.getSource('floodplains') as maplibregl.GeoJSONSource;
+      const floodplainsSource = map.getSource('floodplains') as maplibregl.GeoJSONSource | undefined;
       if (floodplainsSource) {
         floodplainsSource.setData({
           type: 'FeatureCollection',
