@@ -489,22 +489,37 @@ export function Map({
     // Guard: ensure map style is loaded before accessing sources
     if (!map.isStyleLoaded()) return;
 
-    const bounds = map.getBounds();
-    const bbox: [number, number, number, number] = [
-      bounds.getWest(),
-      bounds.getSouth(),
-      bounds.getEast(),
-      bounds.getNorth(),
-    ];
+    // For initial load, use a wide bbox to find all parcels regardless of current view
+    // Otherwise use the current map bounds
+    let bbox: [number, number, number, number];
+    if (fitToData) {
+      // Wide bbox covering the general area - will be refined by fitBounds
+      bbox = [-180, -90, 180, 90];
+    } else {
+      const bounds = map.getBounds();
+      bbox = [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ];
+    }
 
     try {
       const parcels = await getParcels(bbox, 200);
-      updateParcelsLayer(map, parcels);
+
+      // Filter out parcels with null/undefined coordinates
+      const validParcels = parcels.filter(
+        (p) => p.centroid_lon != null && p.centroid_lat != null &&
+               !isNaN(p.centroid_lon) && !isNaN(p.centroid_lat)
+      );
+
+      updateParcelsLayer(map, validParcels);
 
       // Auto-zoom to fit parcels on initial load
-      if (fitToData && parcels.length > 0) {
+      if (fitToData && validParcels.length > 0) {
         const parcelBounds = new maplibregl.LngLatBounds();
-        parcels.forEach((p) => {
+        validParcels.forEach((p) => {
           parcelBounds.extend([p.centroid_lon, p.centroid_lat]);
         });
         map.fitBounds(parcelBounds, {
@@ -525,18 +540,22 @@ export function Map({
     const source = map.getSource('parcel-markers') as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
-    const features: GeoJSON.Feature[] = parcels.map((p) => ({
-      type: 'Feature',
-      properties: {
-        id: p.id,
-        source_id: p.source_id,
-        acres: p.calculated_acres || p.recorded_acres,
-      },
-      geometry: {
-        type: 'Point',
-        coordinates: [p.centroid_lon, p.centroid_lat],
-      },
-    }));
+    // Only create features for parcels with valid coordinates
+    const features: GeoJSON.Feature[] = parcels
+      .filter((p) => p.centroid_lon != null && p.centroid_lat != null &&
+                     !isNaN(p.centroid_lon) && !isNaN(p.centroid_lat))
+      .map((p) => ({
+        type: 'Feature',
+        properties: {
+          id: p.id,
+          source_id: p.source_id,
+          acres: p.calculated_acres || p.recorded_acres,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [p.centroid_lon, p.centroid_lat],
+        },
+      }));
 
     source.setData({
       type: 'FeatureCollection',
