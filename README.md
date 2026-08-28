@@ -1,194 +1,162 @@
 # Buildable Land Analysis
 
-A full-stack web application for calculating buildable area on land parcels after accounting for regulatory and environmental constraints (wetlands, FEMA floodplain).
+A full-stack application that computes how much of a land parcel is actually buildable after removing regulatory and environmental constraints (wetlands, FEMA floodplains), with an interactive map for reviewing and manually adjusting the result.
 
-## Features
+**Live demo:** https://zeg-buildable-land.up.railway.app
 
-- **Interactive Map**: View parcels on a MapLibre GL JS map with OpenStreetMap tiles
-- **Constraint Visualization**: See wetlands (blue) and floodplains (yellow) overlaid on parcels
-- **Configurable Buffers**: Adjust buffer distances for wetlands and floodplains (0-200 ft)
-- **Buildable Area Calculation**: Real-time computation of buildable area using PostGIS
-- **Manual Adjustments**: Draw polygons to manually exclude or restore areas
-- **Area Breakdown**: Detailed breakdown of constrained areas by type
+---
+
+## What this does, in plain terms
+
+A parcel might be 35 acres on paper, but once you subtract wetland buffers, floodplain zones, and any manual adjustments, the real buildable area might be much smaller. This app:
+
+1. Takes a parcel and computes buildable area = parcel − (buffered wetlands ∪ buffered floodplain)
+2. Shows the result on an interactive map, color-coded
+3. Lets a user draw shapes to manually exclude more land, or restore land back in
+4. Recalculates live as buffer distances or manual shapes change
+
+---
+
+## Data used
+
+| Layer | Source | Count | Notes |
+|---|---|---|---|
+| Parcels | Kendall County Appraisal District (ArcGIS Open Data) | 30,907 | 417,539 total acres — matches the county's real land area (~424,000 acres) within ~2% |
+| Wetlands | USFWS National Wetlands Inventory | 3,843 | 5,140 acres |
+| Floodplain | FEMA NFHL, via Kendall County's own portal | 120 | 100-year flood zones |
+
+All three are real, publicly available datasets for Kendall County, Texas — not synthetic test data. See `WRITEUP.md` for the sourcing process, including two data-quality issues caught and fixed along the way (wrong-county data, and an acreage sanity check).
+
+---
 
 ## Architecture
 
 ```
-├── backend/           # FastAPI + PostGIS backend
-│   ├── app/
-│   │   ├── api/       # API routes and schemas
-│   │   ├── core/      # Configuration and geometry calculations
-│   │   └── models/    # SQLAlchemy/GeoAlchemy2 models
-│   ├── alembic/       # Database migrations
-│   └── tests/         # Pytest test suite
-├── frontend/          # React + Vite + TypeScript frontend
-│   └── src/
-│       ├── api/       # API client
-│       ├── components/# React components (Map, Sidebar)
-│       └── hooks/     # Custom hooks (debounce, calculation)
-├── data-prep/         # Data loading scripts
-└── docker-compose.yml # PostGIS database
+┌──────────────────────┐          ┌───────────────────────┐
+│  React + MapLibre GL   │ ◄─────► │  FastAPI + PostGIS      │
+│  (frontend)             │  REST   │  (backend)               │
+└──────────────────────┘          └───────────────────────┘
 ```
 
-## Tech Stack
+- **Backend**: Python, FastAPI, PostGIS (via SQLAlchemy + GeoAlchemy2), Alembic migrations
+- **Frontend**: React, Vite, TypeScript, MapLibre GL JS, mapbox-gl-draw
+- **Database**: PostGIS 3.4, deployed as a Docker service on Railway
+- **Deployment**: Railway (backend, frontend, and database as three separate services)
 
-### Backend
-- **Python 3.11+**
-- **FastAPI** - Modern async API framework
-- **PostGIS** - Spatial database (PostgreSQL + PostGIS)
-- **SQLAlchemy + GeoAlchemy2** - ORM with spatial support
-- **Shapely** - Geometry operations
-- **pyproj** - Coordinate transformations
-- **Pydantic v2** - Data validation
+### Why this stack
+- **PostGIS** for the actual geometry math (`ST_Buffer`, `ST_Union`, `ST_Difference`) — this is what PostGIS is built for, and it's far more reliable than hand-rolling geometric operations in application code.
+- **MapLibre GL** instead of a paid mapping SDK — free, no API key, and performs well at the ~31k parcel scale we're rendering.
+- **A projected, equal-area CRS for all measurements** (NAD83 Texas Centric Albers Equal Area, EPSG:6579), not the storage CRS (EPSG:4326/WGS84) and never Web Mercator. This matters: Web Mercator distorts area significantly and would produce wrong acreage numbers. All buffering and area calculations reproject into EPSG:6579 first; only the final GeoJSON sent to the frontend is in EPSG:4326.
 
-### Frontend
-- **React 18** - UI framework
-- **Vite 5** - Build tool
-- **TypeScript** - Type safety
-- **MapLibre GL JS** - Interactive maps
-- **@mapbox/mapbox-gl-draw** - Drawing tools
+---
 
-## Prerequisites
+## Setup — running it yourself
 
+### Prerequisites
 - Python 3.11+
-- Node.js 20+
-- Docker and Docker Compose
+- Node.js 18+
+- Docker (for local PostGIS) OR access to a PostGIS-enabled Postgres instance
 
-## Setup
-
-### 1. Start the Database
+### 1. Clone and set up the database
 
 ```bash
-docker-compose up -d
+git clone https://github.com/Iterator-alt/Zeg.git
+cd Zeg
+docker compose up -d
 ```
 
-This starts a PostGIS database on port 5435.
+This starts a local PostGIS instance. `docker-compose.yml` defines it — check there if you need to change the port or credentials.
 
-### 2. Backend Setup
+**Why Docker for local dev:** PostGIS is a Postgres extension, not something available in default Postgres installs. Docker gives a consistent, disposable environment without installing PostGIS system-wide.
+
+### 2. Backend setup
 
 ```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+cp ../.env.example .env   # then fill in DATABASE_URL for your local Postgres
+alembic upgrade head       # creates the schema
+uvicorn app.main:app --reload
+```
 
-# Install dependencies
+**What `alembic upgrade head` does:** applies our versioned database migrations — creates the `parcels`, `wetlands`, `floodplains`, and `manual_overrides` tables, each with a GIST spatial index on its geometry column. Without the GIST index, any bbox or intersection query against 30k+ parcels would be a full table scan — slow at this scale, and would only get worse with more data.
+
+Backend runs at `http://localhost:8000`. Interactive API docs at `http://localhost:8000/docs`.
+
+### 3. Load data
+
+```bash
+cd data-prep
 pip install -r requirements.txt
 
-# Run migrations
-alembic upgrade head
-
-# Load test data
-cd ../data-prep
+# For quick local testing with small synthetic data:
 python generate_test_data.py
 python load_data.py
 
-# Start the API server
-cd ../backend
-uvicorn app.main:app --reload --port 8000
+# For real Kendall County data (large files, not included in this repo):
+# See "Real data" section below for sources, then:
+python load_data.py --source real
 ```
 
-The API will be available at http://localhost:8000
-
-### 3. Frontend Setup
+### 4. Frontend setup
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start development server
+cp .env.example .env   # set VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-The frontend will be available at http://localhost:5173
+Frontend runs at `http://localhost:5173`.
 
-## API Endpoints
+---
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/parcels` | GET | List parcels in bbox |
-| `/api/parcels/{id}` | GET | Get parcel details |
-| `/api/parcels/{id}/constraints` | GET | Get parcel constraints |
-| `/api/parcels/{id}/buildable` | POST | Calculate buildable area |
+## Real data — sourcing it yourself
 
-### Example: Calculate Buildable Area
+The real Kendall County datasets are too large to include in this repo (the wetlands geodatabase alone is ~2GB before clipping). To reproduce:
 
-```bash
-curl -X POST "http://localhost:8000/api/parcels/2/buildable" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "wetland_buffer_ft": 50,
-    "floodplain_buffer_ft": 25,
-    "manual_excludes": [],
-    "manual_restores": []
-  }'
-```
+1. **Parcels**: Kendall County's ArcGIS Open Data portal — search for the parcels layer, export as GeoJSON.
+2. **Wetlands**: USFWS Wetlands Mapper, state-level download for Texas (large file — clip to Kendall County's bounding box after downloading, don't try to load the whole state).
+3. **Floodplain**: FEMA NFHL, either directly or via Kendall County's own portal, which also mirrors it.
 
-Response:
-```json
-{
-  "buildable_acres": 6.46,
-  "parcel_acres": 10.0,
-  "constrained_acres": 3.54,
-  "buildable_geom": { "type": "MultiPolygon", "coordinates": [...] },
-  "breakdown": [
-    { "reason": "Wetlands (with 50.0ft buffer)", "acres": 3.54, "type": "removed" }
-  ],
-  "breakdown_note": "Breakdown entries may overlap...",
-  "warnings": []
-}
-```
+**A note on data sourcing reliability:** during development, the federal USFWS and FEMA REST APIs were both unreliable — the USFWS endpoint returned 500 errors, and FEMA's connection was reset. The eventual working approach was downloading USFWS's pre-packaged state geodatabase directly rather than depending on the live query API, and using Kendall County's own ArcGIS portal (which mirrors FEMA data) instead of hitting FEMA's servers directly. See `WRITEUP.md` for more on this.
 
-## Coordinate Reference Systems
+**Always verify a new data source's bounding box before loading it.** We initially loaded a parcel dataset that turned out to be from California, not Texas — caught only because the reported total acreage (945,483) was roughly 2x too large for Kendall County's actual ~424,000 acres. Print and check the bounding box of any new source before trusting it.
 
-- **Storage**: EPSG:4326 (WGS 84 - GPS coordinates)
-- **Calculations**: EPSG:6579 (NAD83 Texas Centric Albers Equal Area)
-- **Buffer Input**: Feet (converted to meters internally)
+---
 
-All area and buffer calculations use EPSG:6579 for accurate results in Texas.
+## API
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/parcels?bbox=minx,miny,maxx,maxy` | GET | Parcels within the given map viewport — never returns the whole table |
+| `/api/parcels/{id}` | GET | Full geometry + metadata for one parcel |
+| `/api/parcels/{id}/constraints` | GET | Wetlands + floodplain polygons intersecting this parcel |
+| `/api/parcels/{id}/buildable` | POST | Computes buildable area given buffer distances + manual exclude/restore shapes |
+
+Full interactive docs at `/docs` once the backend is running.
+
+---
 
 ## Testing
 
-### Backend Tests
-
 ```bash
 cd backend
-pytest -v
+pytest
 ```
 
-The test suite includes 42 tests covering:
-- Geometry calculations (25 tests)
-- API endpoints (17 tests)
+39 tests covering: area calculations on known synthetic geometries, buffer operations, buildable-area logic (including overlapping constraints and constraints straddling the parcel boundary), manual exclude/restore geometry handling, coordinate transform round-trips, and API integration tests.
 
-### Test Data
+---
 
-The application includes synthetic test data for Kendall County, TX:
-- 5 parcels (2, 10, 10, 15, 20 acres)
-- 2 wetland areas
-- 3 floodplain zones
+## Deployment
 
-## Configuration
+Deployed on Railway as three services: PostGIS database, FastAPI backend, React frontend. See `WRITEUP.md` for deployment notes, including a couple of PostGIS-on-Railway-specific gotchas (the default Postgres image doesn't include PostGIS; the data volume mount path needs to be a subdirectory, not the raw mount point).
 
-### Environment Variables
+---
 
-Create a `.env` file in the backend directory:
+## Known limitations
 
-```env
-DATABASE_URL=postgresql://buildable:buildable@localhost:5435/buildable_land
-
-# Buffer defaults (feet)
-DEFAULT_WETLAND_BUFFER_FT=50
-DEFAULT_FLOODPLAIN_BUFFER_FT=25
-
-# CRS settings
-STORAGE_CRS=4326
-PROJECTED_CRS=6579
-```
-
-## License
-
-MIT
+See `WRITEUP.md` for the full list, including performance behavior at scale and what we'd do differently with more time.
