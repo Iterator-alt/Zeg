@@ -140,13 +140,24 @@ export function Map({
   const restoreIdsRef = useRef<Set<string>>(new Set());
   // Track current draw mode in a ref to access in event handlers without re-registering them
   const drawModeRef = useRef<'none' | 'exclude' | 'restore'>(drawMode);
+  // Store callbacks in refs so event handlers always use the latest version
+  const onDrawChangeRef = useRef(onDrawChange);
+  const setDrawModeRef = useRef(setDrawMode);
 
-  // Keep drawModeRef in sync with drawMode prop
+  // Keep refs in sync with props
   useEffect(() => {
     drawModeRef.current = drawMode;
   }, [drawMode]);
 
-  // Handle draw changes - uses refs to avoid re-registering event handlers
+  useEffect(() => {
+    onDrawChangeRef.current = onDrawChange;
+  }, [onDrawChange]);
+
+  useEffect(() => {
+    setDrawModeRef.current = setDrawMode;
+  }, [setDrawMode]);
+
+  // Handle draw changes - uses refs to avoid stale closures in event handlers
   const handleDrawChange = useCallback(() => {
     const draw = drawRef.current;
     if (!draw) return;
@@ -186,13 +197,14 @@ export function Map({
       if (!currentIds.has(id)) restoreIdsRef.current.delete(id);
     });
 
-    onDrawChange(excludes, restores);
+    // Use refs to ensure we call the latest callbacks
+    onDrawChangeRef.current(excludes, restores);
 
     // Reset to simple_select after drawing is complete
     if (currentMode !== 'none') {
-      setDrawMode('none');
+      setDrawModeRef.current('none');
     }
-  }, [onDrawChange, setDrawMode]);
+  }, []); // No dependencies - uses refs for all external values
 
   // Initialize map
   useEffect(() => {
@@ -411,7 +423,7 @@ export function Map({
       map.remove();
       mapRef.current = null;
     };
-  }, [handleDrawChange]);
+  }, []); // Empty deps - handleDrawChange is stable (uses refs internally)
 
   // Update draw mode
   useEffect(() => {

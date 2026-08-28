@@ -43,8 +43,11 @@ export function useBuildableCalculation({
   const requestVersionRef = useRef(0);
 
   // Create a stable serialization of manual geometries for dependency tracking
+  // Also debounce these to prevent rapid API calls during drawing
   const manualExcludesJson = JSON.stringify(manualExcludes);
   const manualRestoresJson = JSON.stringify(manualRestores);
+  const debouncedExcludesJson = useDebounce(manualExcludesJson, debounceMs);
+  const debouncedRestoresJson = useDebounce(manualRestoresJson, debounceMs);
 
   const performCalculation = useCallback(async () => {
     if (parcelId === null) {
@@ -60,8 +63,8 @@ export function useBuildableCalculation({
       const request: BuildableRequest = {
         wetland_buffer_ft: debouncedWetlandBuffer,
         floodplain_buffer_ft: debouncedFloodplainBuffer,
-        manual_excludes: JSON.parse(manualExcludesJson),
-        manual_restores: JSON.parse(manualRestoresJson),
+        manual_excludes: JSON.parse(debouncedExcludesJson),
+        manual_restores: JSON.parse(debouncedRestoresJson),
       };
 
       const response = await calculateBuildable(parcelId, request);
@@ -87,8 +90,8 @@ export function useBuildableCalculation({
     parcelId,
     debouncedWetlandBuffer,
     debouncedFloodplainBuffer,
-    manualExcludesJson,
-    manualRestoresJson,
+    debouncedExcludesJson,
+    debouncedRestoresJson,
   ]);
 
   // Recalculate when dependencies change
