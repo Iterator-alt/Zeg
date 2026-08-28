@@ -62,3 +62,4 @@ Thumbs.db
 # Agent skills (installed per-machine)
 .agents/
 skills-lock.json
+*.zip
