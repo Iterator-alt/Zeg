@@ -58,3 +58,7 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/
+
+# Agent skills (installed per-machine)
+.agents/
+skills-lock.json
