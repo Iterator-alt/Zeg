@@ -20,33 +20,8 @@ import type {
 const DEFAULT_CENTER: [number, number] = [-98.7, 29.9];
 const DEFAULT_ZOOM = 10;
 
-// Modern, muted basemap style (Positron-inspired) for clear data visualization
-const BASEMAP_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'carto-positron': {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-      ],
-      tileSize: 256,
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [
-    {
-      id: 'carto-positron',
-      type: 'raster',
-      source: 'carto-positron',
-      paint: {
-        'raster-opacity': 0.9,
-        'raster-saturation': -0.2,
-      },
-    },
-  ],
-};
+// OpenFreeMap Positron style - clean, muted basemap (no API key required)
+const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
 
 // Custom draw styles compatible with MapLibre (using ["literal", [...]] for arrays)
 const drawStyles = [
