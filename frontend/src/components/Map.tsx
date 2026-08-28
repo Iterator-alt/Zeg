@@ -20,8 +20,8 @@ import type {
 const DEFAULT_CENTER: [number, number] = [-98.7, 29.9];
 const DEFAULT_ZOOM = 10;
 
-// OpenFreeMap Positron style - clean, muted basemap (no API key required)
-const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
+// OpenFreeMap Dark style - premium dark basemap (no API key required)
+const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/dark';
 
 // Custom draw styles compatible with MapLibre (using ["literal", [...]] for arrays)
 const drawStyles = [
@@ -244,17 +244,30 @@ export function Map({
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Parcel markers layer - prominent but not overwhelming
+      // Parcel markers glow layer (underneath)
+      map.addLayer({
+        id: 'parcel-markers-glow',
+        type: 'circle',
+        source: 'parcel-markers',
+        paint: {
+          'circle-radius': 18,
+          'circle-color': '#00ffaa',
+          'circle-blur': 1,
+          'circle-opacity': 0.3,
+        },
+      });
+
+      // Parcel markers layer - vibrant on dark theme
       map.addLayer({
         id: 'parcel-markers',
         type: 'circle',
         source: 'parcel-markers',
         paint: {
-          'circle-radius': 10,
-          'circle-color': '#4f46e5',
-          'circle-stroke-color': '#fff',
+          'circle-radius': 8,
+          'circle-color': '#00ffaa',
+          'circle-stroke-color': '#0a0e14',
           'circle-stroke-width': 2,
-          'circle-opacity': 0.9,
+          'circle-opacity': 1,
         },
       });
 
@@ -264,13 +277,26 @@ export function Map({
         data: { type: 'FeatureCollection', features: [] },
       });
 
+      // Selected parcel glow
+      map.addLayer({
+        id: 'selected-parcel-glow',
+        type: 'line',
+        source: 'selected-parcel',
+        paint: {
+          'line-color': '#00ffaa',
+          'line-width': 12,
+          'line-blur': 6,
+          'line-opacity': 0.4,
+        },
+      });
+
       map.addLayer({
         id: 'selected-parcel-fill',
         type: 'fill',
         source: 'selected-parcel',
         paint: {
-          'fill-color': '#6366f1',
-          'fill-opacity': 0.08,
+          'fill-color': '#00ffaa',
+          'fill-opacity': 0.06,
         },
       });
 
@@ -279,16 +305,29 @@ export function Map({
         type: 'line',
         source: 'selected-parcel',
         paint: {
-          'line-color': '#4f46e5',
-          'line-width': 2.5,
-          'line-dasharray': [4, 2],
+          'line-color': '#00ffaa',
+          'line-width': 2,
+          'line-dasharray': [6, 3],
         },
       });
 
-      // Wetlands layer (blue)
+      // Wetlands layer (cyan/blue - saturated for dark theme)
       map.addSource('wetlands', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+      });
+
+      // Wetlands glow
+      map.addLayer({
+        id: 'wetlands-glow',
+        type: 'line',
+        source: 'wetlands',
+        paint: {
+          'line-color': '#00aaff',
+          'line-width': 10,
+          'line-blur': 5,
+          'line-opacity': 0.4,
+        },
       });
 
       map.addLayer({
@@ -296,7 +335,7 @@ export function Map({
         type: 'fill',
         source: 'wetlands',
         paint: {
-          'fill-color': '#3b82f6',
+          'fill-color': '#00aaff',
           'fill-opacity': 0.25,
         },
       });
@@ -306,16 +345,29 @@ export function Map({
         type: 'line',
         source: 'wetlands',
         paint: {
-          'line-color': '#2563eb',
-          'line-width': 1.5,
-          'line-opacity': 0.7,
+          'line-color': '#00ccff',
+          'line-width': 2,
+          'line-opacity': 0.9,
         },
       });
 
-      // Floodplain layer (yellow/orange)
+      // Floodplain layer (amber/orange - saturated for dark theme)
       map.addSource('floodplains', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+      });
+
+      // Floodplain glow
+      map.addLayer({
+        id: 'floodplains-glow',
+        type: 'line',
+        source: 'floodplains',
+        paint: {
+          'line-color': '#ffaa00',
+          'line-width': 10,
+          'line-blur': 5,
+          'line-opacity': 0.4,
+        },
       });
 
       map.addLayer({
@@ -323,7 +375,7 @@ export function Map({
         type: 'fill',
         source: 'floodplains',
         paint: {
-          'fill-color': '#f59e0b',
+          'fill-color': '#ffaa00',
           'fill-opacity': 0.2,
         },
       });
@@ -333,28 +385,41 @@ export function Map({
         type: 'line',
         source: 'floodplains',
         paint: {
-          'line-color': '#d97706',
-          'line-width': 1.5,
-          'line-opacity': 0.7,
+          'line-color': '#ffcc00',
+          'line-width': 2,
+          'line-opacity': 0.9,
         },
       });
 
-      // Buildable area layer (green)
+      // Buildable area layer (electric green - THE visual focal point)
       map.addSource('buildable', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Buildable area - THE focal point with glow effect
+      // Buildable area - outer glow (neon effect)
+      map.addLayer({
+        id: 'buildable-glow-outer',
+        type: 'line',
+        source: 'buildable',
+        paint: {
+          'line-color': '#00ff88',
+          'line-width': 20,
+          'line-blur': 10,
+          'line-opacity': 0.3,
+        },
+      });
+
+      // Buildable area - inner glow
       map.addLayer({
         id: 'buildable-glow',
         type: 'line',
         source: 'buildable',
         paint: {
-          'line-color': '#22c55e',
-          'line-width': 8,
+          'line-color': '#00ff88',
+          'line-width': 10,
           'line-blur': 4,
-          'line-opacity': 0.4,
+          'line-opacity': 0.5,
         },
       });
 
@@ -363,8 +428,8 @@ export function Map({
         type: 'fill',
         source: 'buildable',
         paint: {
-          'fill-color': '#22c55e',
-          'fill-opacity': 0.45,
+          'fill-color': '#00ff88',
+          'fill-opacity': 0.35,
         },
       });
 
@@ -373,7 +438,7 @@ export function Map({
         type: 'line',
         source: 'buildable',
         paint: {
-          'line-color': '#15803d',
+          'line-color': '#00ffaa',
           'line-width': 2.5,
         },
       });

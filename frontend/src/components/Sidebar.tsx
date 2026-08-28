@@ -249,19 +249,19 @@ export function Sidebar({
         <h2>Legend</h2>
         <div className="legend-items">
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#007bff' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#00ffaa', boxShadow: '0 0 8px #00ffaa' }}></span>
             <span>Selected Parcel</span>
           </div>
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#0066cc' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#00aaff', boxShadow: '0 0 8px #00aaff' }}></span>
             <span>Wetlands</span>
           </div>
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#ffaa00' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#ffaa00', boxShadow: '0 0 8px #ffaa00' }}></span>
             <span>Floodplain</span>
           </div>
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#22c55e' }}></span>
+            <span className="legend-color" style={{ backgroundColor: '#00ff88', boxShadow: '0 0 8px #00ff88' }}></span>
             <span>Buildable Area</span>
           </div>
         </div>
