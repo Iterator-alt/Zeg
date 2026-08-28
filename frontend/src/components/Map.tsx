@@ -138,8 +138,15 @@ export function Map({
   const drawRef = useRef<MapboxDraw | null>(null);
   const excludeIdsRef = useRef<Set<string>>(new Set());
   const restoreIdsRef = useRef<Set<string>>(new Set());
+  // Track current draw mode in a ref to access in event handlers without re-registering them
+  const drawModeRef = useRef<'none' | 'exclude' | 'restore'>(drawMode);
 
-  // Handle draw changes
+  // Keep drawModeRef in sync with drawMode prop
+  useEffect(() => {
+    drawModeRef.current = drawMode;
+  }, [drawMode]);
+
+  // Handle draw changes - uses refs to avoid re-registering event handlers
   const handleDrawChange = useCallback(() => {
     const draw = drawRef.current;
     if (!draw) return;
@@ -147,6 +154,7 @@ export function Map({
     const allFeatures = draw.getAll();
     const excludes: GeoJSON.Geometry[] = [];
     const restores: GeoJSON.Geometry[] = [];
+    const currentMode = drawModeRef.current;
 
     // Track new features based on current mode
     allFeatures.features.forEach((feature) => {
@@ -154,9 +162,9 @@ export function Map({
 
       // If it's a new feature, assign it to current mode
       if (!excludeIdsRef.current.has(id) && !restoreIdsRef.current.has(id)) {
-        if (drawMode === 'exclude') {
+        if (currentMode === 'exclude') {
           excludeIdsRef.current.add(id);
-        } else if (drawMode === 'restore') {
+        } else if (currentMode === 'restore') {
           restoreIdsRef.current.add(id);
         }
       }
@@ -180,11 +188,11 @@ export function Map({
 
     onDrawChange(excludes, restores);
 
-    // Reset to simple_select after drawing
-    if (drawMode !== 'none') {
+    // Reset to simple_select after drawing is complete
+    if (currentMode !== 'none') {
       setDrawMode('none');
     }
-  }, [drawMode, onDrawChange, setDrawMode]);
+  }, [onDrawChange, setDrawMode]);
 
   // Initialize map
   useEffect(() => {
@@ -364,8 +372,13 @@ export function Map({
       loadParcelsInView(map);
     });
 
-    // Handle parcel marker click
+    // Handle parcel marker click - but not during draw mode
     map.on('click', 'parcel-markers', async (e: maplibregl.MapLayerMouseEvent) => {
+      // Skip parcel selection while in draw mode to prevent interference with drawing
+      const currentDrawMode = drawRef.current?.getMode();
+      if (drawModeRef.current !== 'none' || currentDrawMode === 'draw_polygon') {
+        return;
+      }
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
         const parcelId = feature.properties?.id;
