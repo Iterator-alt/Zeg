@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "skills": {
+    "mapbox-cartography": {
+      "source": "mapbox/mapbox-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mapbox-cartography/SKILL.md",
+      "computedHash": "e0de5323eaa8054e4773ed077e3cda384e645d445eafeb1e6334ab1267558dbb"
+    },
+    "maplibre-cartography": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-cartography/SKILL.md",
+      "computedHash": "6d9792e01391764ab662c4bbc2f4a3fee5ae246231560d1ef9294626d843ff75"
+    },
+    "maplibre-fonts-glyphs": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-fonts-glyphs/SKILL.md",
+      "computedHash": "9eed299267cdc5f3f7b09694d4864b0b08ef71c143cf6e6f1e42691c516cf09a"
+    },
+    "maplibre-mapbox-migration": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-mapbox-migration/SKILL.md",
+      "computedHash": "71d71eb0102d4fec9de5d02f579ddff49c48b97691ee595e897d9a8ce75b7845"
+    },
+    "maplibre-pmtiles-patterns": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-pmtiles-patterns/SKILL.md",
+      "computedHash": "ffe7a1194059240f5bb8b3a94413ae3c40acc99bfb6cbd82e4537b118d608752"
+    },
+    "maplibre-skill-authoring": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-skill-authoring/SKILL.md",
+      "computedHash": "78a1b82bec8d29c4d1d9443af99b4194234a49866beaee2e6cda4e7dab9f343c"
+    },
+    "maplibre-terrain-patterns": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-terrain-patterns/SKILL.md",
+      "computedHash": "a36456aaa9d4373b938b66471c8dc2bd7a6ee3e729bc0468744dcade425f8d31"
+    },
+    "maplibre-tile-sources": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-tile-sources/SKILL.md",
+      "computedHash": "dfa3b23594b1245980e58932a08c442e4e984163e7d02314d3a2b4ad3174b670"
+    },
+    "maplibre-v6-migration": {
+      "source": "maplibre/maplibre-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/maplibre-v6-migration/SKILL.md",
+      "computedHash": "3ba7f9d105be3388e69d4bddd0fa66b9f16f171e5a2675d4ed4d9623e8bb679c"
+    }
+  }
+}

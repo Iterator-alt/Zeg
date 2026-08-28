@@ -1,36 +1,42 @@
-/* Sidebar Styles */
+/* Sidebar Styles - Modern UI */
 
 .sidebar {
-  width: 360px;
+  width: 380px;
   height: 100%;
-  background: #fff;
-  border-right: 1px solid #e0e0e0;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .sidebar-title {
   margin: 0;
-  padding: 16px;
-  font-size: 1.25rem;
-  font-weight: 600;
-  background: #1a1a2e;
+  padding: 20px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   color: white;
+  letter-spacing: -0.025em;
 }
 
 .sidebar-section {
   padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  margin: 12px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
 }
 
 .sidebar-section h2 {
   margin: 0 0 12px 0;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: #666;
-  letter-spacing: 0.5px;
+  color: #64748b;
+  letter-spacing: 0.05em;
 }
 
 .sidebar-section h3 {
@@ -42,9 +48,10 @@
 
 /* Parcel Info */
 .parcel-info {
-  background: #f8f9fa;
+  background: #f8fafc;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 .info-row {
@@ -128,13 +135,14 @@
 
 .draw-btn {
   flex: 1;
-  padding: 10px 16px;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
   background: white;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
 }
 
 .draw-btn:disabled {
@@ -193,25 +201,46 @@
 .loading-indicator {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px;
-  background: #f0f7ff;
-  border-radius: 6px;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 12px;
+  border: 1px solid #bbf7d0;
+}
+
+.loading-indicator span {
+  color: #16a34a;
+  font-weight: 500;
 }
 
 .spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid #e0e0e0;
-  border-top-color: #007bff;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #bbf7d0;
+  border-top-color: #22c55e;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Skeleton loading animation for the buildable card */
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0fdf4 25%, #dcfce7 50%, #f0fdf4 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .error-message {
@@ -226,23 +255,39 @@
 /* Buildable Total */
 .buildable-total {
   text-align: center;
-  padding: 16px;
+  padding: 20px 16px;
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  border-radius: 8px;
+  border-radius: 12px;
   color: white;
   margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.buildable-total:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.35);
 }
 
 .buildable-acres {
   display: block;
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: 3rem;
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.03em;
+  animation: pulse-subtle 0.3s ease-out;
+}
+
+@keyframes pulse-subtle {
+  0% { opacity: 0.7; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .buildable-unit {
   font-size: 0.875rem;
   opacity: 0.9;
+  font-weight: 500;
+  margin-top: 4px;
 }
 
 /* Buildable Summary */
@@ -346,6 +391,9 @@
 /* Legend */
 .legend-section {
   margin-top: auto;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .legend-items {

@@ -16,9 +16,37 @@ import type {
   BuildableResponse,
 } from '../types/api';
 
-// Kendall County, TX approximate center (where our test data is)
+// Kendall County, TX approximate center (fallback only)
 const DEFAULT_CENTER: [number, number] = [-98.7, 29.9];
-const DEFAULT_ZOOM = 14;
+const DEFAULT_ZOOM = 10;
+
+// Modern, muted basemap style (Positron-inspired) for clear data visualization
+const BASEMAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    'carto-positron': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    },
+  },
+  layers: [
+    {
+      id: 'carto-positron',
+      type: 'raster',
+      source: 'carto-positron',
+      paint: {
+        'raster-opacity': 0.9,
+        'raster-saturation': -0.2,
+      },
+    },
+  ],
+};
 
 // Custom draw styles compatible with MapLibre (using ["literal", [...]] for arrays)
 const drawStyles = [
@@ -212,24 +240,7 @@ export function Map({
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
-          },
-        },
-        layers: [
-          {
-            id: 'osm',
-            type: 'raster',
-            source: 'osm',
-          },
-        ],
-      },
+      style: BASEMAP_STYLE,
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
     });
@@ -258,16 +269,17 @@ export function Map({
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Parcel markers layer
+      // Parcel markers layer - prominent but not overwhelming
       map.addLayer({
         id: 'parcel-markers',
         type: 'circle',
         source: 'parcel-markers',
         paint: {
-          'circle-radius': 8,
-          'circle-color': '#3388ff',
+          'circle-radius': 10,
+          'circle-color': '#4f46e5',
           'circle-stroke-color': '#fff',
           'circle-stroke-width': 2,
+          'circle-opacity': 0.9,
         },
       });
 
@@ -282,8 +294,8 @@ export function Map({
         type: 'fill',
         source: 'selected-parcel',
         paint: {
-          'fill-color': '#007bff',
-          'fill-opacity': 0.15,
+          'fill-color': '#6366f1',
+          'fill-opacity': 0.08,
         },
       });
 
@@ -292,8 +304,9 @@ export function Map({
         type: 'line',
         source: 'selected-parcel',
         paint: {
-          'line-color': '#007bff',
-          'line-width': 3,
+          'line-color': '#4f46e5',
+          'line-width': 2.5,
+          'line-dasharray': [4, 2],
         },
       });
 
@@ -308,8 +321,8 @@ export function Map({
         type: 'fill',
         source: 'wetlands',
         paint: {
-          'fill-color': '#0066cc',
-          'fill-opacity': 0.35,
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.25,
         },
       });
 
@@ -318,8 +331,9 @@ export function Map({
         type: 'line',
         source: 'wetlands',
         paint: {
-          'line-color': '#0044aa',
+          'line-color': '#2563eb',
           'line-width': 1.5,
+          'line-opacity': 0.7,
         },
       });
 
@@ -334,8 +348,8 @@ export function Map({
         type: 'fill',
         source: 'floodplains',
         paint: {
-          'fill-color': '#ffaa00',
-          'fill-opacity': 0.35,
+          'fill-color': '#f59e0b',
+          'fill-opacity': 0.2,
         },
       });
 
@@ -344,8 +358,9 @@ export function Map({
         type: 'line',
         source: 'floodplains',
         paint: {
-          'line-color': '#cc8800',
+          'line-color': '#d97706',
           'line-width': 1.5,
+          'line-opacity': 0.7,
         },
       });
 
@@ -355,13 +370,26 @@ export function Map({
         data: { type: 'FeatureCollection', features: [] },
       });
 
+      // Buildable area - THE focal point with glow effect
+      map.addLayer({
+        id: 'buildable-glow',
+        type: 'line',
+        source: 'buildable',
+        paint: {
+          'line-color': '#22c55e',
+          'line-width': 8,
+          'line-blur': 4,
+          'line-opacity': 0.4,
+        },
+      });
+
       map.addLayer({
         id: 'buildable-fill',
         type: 'fill',
         source: 'buildable',
         paint: {
           'fill-color': '#22c55e',
-          'fill-opacity': 0.5,
+          'fill-opacity': 0.45,
         },
       });
 
@@ -370,13 +398,13 @@ export function Map({
         type: 'line',
         source: 'buildable',
         paint: {
-          'line-color': '#16a34a',
-          'line-width': 2,
+          'line-color': '#15803d',
+          'line-width': 2.5,
         },
       });
 
-      // Load initial parcels
-      loadParcelsInView(map);
+      // Load initial parcels and auto-zoom to fit them
+      loadParcelsInView(map, true);
     });
 
     // Load parcels when map moves
@@ -400,13 +428,32 @@ export function Map({
       }
     });
 
-    // Change cursor on hover
+    // Set default cursor and change on hover
+    map.getCanvas().style.cursor = 'grab';
+
     map.on('mouseenter', 'parcel-markers', () => {
-      map.getCanvas().style.cursor = 'pointer';
+      if (drawModeRef.current === 'none') {
+        map.getCanvas().style.cursor = 'pointer';
+      }
     });
 
     map.on('mouseleave', 'parcel-markers', () => {
-      map.getCanvas().style.cursor = '';
+      if (drawModeRef.current === 'none') {
+        map.getCanvas().style.cursor = 'grab';
+      }
+    });
+
+    // Dragging cursor
+    map.on('dragstart', () => {
+      if (drawModeRef.current === 'none') {
+        map.getCanvas().style.cursor = 'grabbing';
+      }
+    });
+
+    map.on('dragend', () => {
+      if (drawModeRef.current === 'none') {
+        map.getCanvas().style.cursor = 'grab';
+      }
     });
 
     // Handle draw events (mapbox-gl-draw adds custom events)
@@ -425,15 +472,22 @@ export function Map({
     };
   }, []); // Empty deps - handleDrawChange is stable (uses refs internally)
 
-  // Update draw mode
+  // Update draw mode and cursor
   useEffect(() => {
     const draw = drawRef.current;
+    const map = mapRef.current;
     if (!draw) return;
 
     if (drawMode === 'exclude' || drawMode === 'restore') {
       draw.changeMode('draw_polygon');
+      if (map) {
+        map.getCanvas().style.cursor = 'crosshair';
+      }
     } else {
       draw.changeMode('simple_select');
+      if (map) {
+        map.getCanvas().style.cursor = 'grab';
+      }
     }
   }, [drawMode]);
 
@@ -456,7 +510,7 @@ export function Map({
     }
   }, [buildableResult]);
 
-  const loadParcelsInView = async (map: maplibregl.Map) => {
+  const loadParcelsInView = async (map: maplibregl.Map, fitToData = false) => {
     // Guard: ensure map style is loaded before accessing sources
     if (!map.isStyleLoaded()) return;
 
@@ -471,6 +525,19 @@ export function Map({
     try {
       const parcels = await getParcels(bbox, 200);
       updateParcelsLayer(map, parcels);
+
+      // Auto-zoom to fit parcels on initial load
+      if (fitToData && parcels.length > 0) {
+        const parcelBounds = new maplibregl.LngLatBounds();
+        parcels.forEach((p) => {
+          parcelBounds.extend([p.centroid_lon, p.centroid_lat]);
+        });
+        map.fitBounds(parcelBounds, {
+          padding: 80,
+          maxZoom: 15,
+          duration: 1000,
+        });
+      }
     } catch (error) {
       console.error('Error loading parcels:', error);
     }
