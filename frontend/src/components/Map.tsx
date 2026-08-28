@@ -8,9 +8,9 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 
-import { getParcels, getParcel, getParcelConstraints } from '../api/client';
+import { getParcelsWithGeometry, getParcel, getParcelConstraints } from '../api/client';
 import type {
-  ParcelSummary,
+  ParcelWithGeometry,
   ParcelDetail,
   ConstraintsResponse,
   BuildableResponse,
@@ -245,36 +245,32 @@ export function Map({
     });
 
     map.on('load', () => {
-      // Add parcel markers source (points for clickable markers)
-      map.addSource('parcel-markers', {
+      // Add parcels source (polygons for actual boundaries)
+      map.addSource('parcels', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       });
 
-      // Parcel markers glow layer (underneath)
+      // Parcels fill layer - subtle fill
       map.addLayer({
-        id: 'parcel-markers-glow',
-        type: 'circle',
-        source: 'parcel-markers',
+        id: 'parcels-fill',
+        type: 'fill',
+        source: 'parcels',
         paint: {
-          'circle-radius': 18,
-          'circle-color': '#00ffaa',
-          'circle-blur': 1,
-          'circle-opacity': 0.3,
+          'fill-color': '#00ffaa',
+          'fill-opacity': 0.08,
         },
       });
 
-      // Parcel markers layer - vibrant on dark theme
+      // Parcels outline layer - visible boundaries
       map.addLayer({
-        id: 'parcel-markers',
-        type: 'circle',
-        source: 'parcel-markers',
+        id: 'parcels-outline',
+        type: 'line',
+        source: 'parcels',
         paint: {
-          'circle-radius': 8,
-          'circle-color': '#00ffaa',
-          'circle-stroke-color': '#0a0e14',
-          'circle-stroke-width': 2,
-          'circle-opacity': 1,
+          'line-color': '#00ffaa',
+          'line-width': 1,
+          'line-opacity': 0.6,
         },
       });
 
@@ -459,8 +455,8 @@ export function Map({
       loadParcelsInView(map);
     });
 
-    // Handle parcel marker click - but not during draw mode
-    map.on('click', 'parcel-markers', async (e: maplibregl.MapLayerMouseEvent) => {
+    // Handle parcel click - but not during draw mode
+    map.on('click', 'parcels-fill', async (e: maplibregl.MapLayerMouseEvent) => {
       // Skip parcel selection while in draw mode to prevent interference with drawing
       const currentDrawMode = drawRef.current?.getMode();
       if (drawModeRef.current !== 'none' || currentDrawMode === 'draw_polygon') {
@@ -478,13 +474,13 @@ export function Map({
     // Set default cursor and change on hover
     map.getCanvas().style.cursor = 'grab';
 
-    map.on('mouseenter', 'parcel-markers', () => {
+    map.on('mouseenter', 'parcels-fill', () => {
       if (drawModeRef.current === 'none') {
         map.getCanvas().style.cursor = 'pointer';
       }
     });
 
-    map.on('mouseleave', 'parcel-markers', () => {
+    map.on('mouseleave', 'parcels-fill', () => {
       if (drawModeRef.current === 'none') {
         map.getCanvas().style.cursor = 'grab';
       }
@@ -561,72 +557,51 @@ export function Map({
     // Guard: ensure map style is loaded before accessing sources
     if (!map.isStyleLoaded()) return;
 
-    // For initial load, use a wide bbox to find all parcels regardless of current view
-    // Otherwise use the current map bounds
-    let bbox: [number, number, number, number];
-    if (fitToData) {
-      // Wide bbox covering the general area - will be refined by fitBounds
-      bbox = [-180, -90, 180, 90];
-    } else {
-      const bounds = map.getBounds();
-      bbox = [
-        bounds.getWest(),
-        bounds.getSouth(),
-        bounds.getEast(),
-        bounds.getNorth(),
-      ];
-    }
+    const bounds = map.getBounds();
+    const bbox: [number, number, number, number] = [
+      bounds.getWest(),
+      bounds.getSouth(),
+      bounds.getEast(),
+      bounds.getNorth(),
+    ];
 
     try {
-      const parcels = await getParcels(bbox, 200);
+      // Fetch parcels with geometry for the current viewport
+      const parcels = await getParcelsWithGeometry(bbox, 300);
 
-      // Filter out parcels with null/undefined coordinates
-      const validParcels = parcels.filter(
-        (p) => p.centroid_lon != null && p.centroid_lat != null &&
-               !isNaN(p.centroid_lon) && !isNaN(p.centroid_lat)
-      );
-
-      updateParcelsLayer(map, validParcels);
+      updateParcelsLayer(map, parcels);
 
       // Auto-zoom to fit parcels on initial load
-      if (fitToData && validParcels.length > 0) {
-        const parcelBounds = new maplibregl.LngLatBounds();
-        validParcels.forEach((p) => {
-          parcelBounds.extend([p.centroid_lon, p.centroid_lat]);
-        });
-        map.fitBounds(parcelBounds, {
-          padding: 80,
-          maxZoom: 15,
-          duration: 1000,
-        });
+      if (fitToData && parcels.length > 0) {
+        // Use Kendall County bounds directly for initial zoom
+        map.fitBounds(
+          [[-98.92, 29.72], [-98.41, 30.14]],
+          { padding: 40, duration: 1000 }
+        );
       }
     } catch (error) {
       console.error('Error loading parcels:', error);
     }
   };
 
-  const updateParcelsLayer = (map: maplibregl.Map, parcels: ParcelSummary[]) => {
+  const updateParcelsLayer = (map: maplibregl.Map, parcels: ParcelWithGeometry[]) => {
     // Guard: ensure map style is loaded before accessing sources
     if (!map.isStyleLoaded()) return;
 
-    const source = map.getSource('parcel-markers') as maplibregl.GeoJSONSource | undefined;
+    const source = map.getSource('parcels') as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
 
-    // Only create features for parcels with valid coordinates
+    // Create features from parcel geometries
     const features: GeoJSON.Feature[] = parcels
-      .filter((p) => p.centroid_lon != null && p.centroid_lat != null &&
-                     !isNaN(p.centroid_lon) && !isNaN(p.centroid_lat))
+      .filter((p) => p.geometry != null)
       .map((p) => ({
         type: 'Feature',
         properties: {
           id: p.id,
           source_id: p.source_id,
-          acres: p.calculated_acres || p.recorded_acres,
+          acres: p.calculated_acres,
         },
-        geometry: {
-          type: 'Point',
-          coordinates: [p.centroid_lon, p.centroid_lat],
-        },
+        geometry: p.geometry,
       }));
 
     source.setData({

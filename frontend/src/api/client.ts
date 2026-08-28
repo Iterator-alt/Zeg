@@ -4,6 +4,7 @@
 
 import type {
   ParcelSummary,
+  ParcelWithGeometry,
   ParcelDetail,
   ConstraintsResponse,
   BuildableRequest,
@@ -46,7 +47,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Get parcels within a bounding box
+ * Get parcels within a bounding box (centroid only, for initial load)
  */
 export async function getParcels(
   bbox: [number, number, number, number],
@@ -56,6 +57,19 @@ export async function getParcels(
   const url = `${API_BASE}/parcels?bbox=${minx},${miny},${maxx},${maxy}&limit=${limit}`;
   const response = await fetch(url);
   return handleResponse<ParcelSummary[]>(response);
+}
+
+/**
+ * Get parcels with full geometry for map rendering
+ */
+export async function getParcelsWithGeometry(
+  bbox: [number, number, number, number],
+  limit = 200
+): Promise<ParcelWithGeometry[]> {
+  const [minx, miny, maxx, maxy] = bbox;
+  const url = `${API_BASE}/parcels/geojson?bbox=${minx},${miny},${maxx},${maxy}&limit=${limit}`;
+  const response = await fetch(url);
+  return handleResponse<ParcelWithGeometry[]>(response);
 }
 
 /**

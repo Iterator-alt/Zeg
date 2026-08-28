@@ -11,6 +11,13 @@ export interface ParcelSummary {
   calculated_acres: number | null;
 }
 
+export interface ParcelWithGeometry {
+  id: number;
+  source_id: string | null;
+  calculated_acres: number | null;
+  geometry: GeoJSON.Geometry;
+}
+
 export interface ParcelDetail {
   id: number;
   source_id: string | null;

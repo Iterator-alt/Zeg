@@ -19,6 +19,7 @@ from app.core.geometry import (
 )
 from app.api.schemas import (
     ParcelSummary,
+    ParcelWithGeometry,
     ParcelDetail,
     ConstraintsResponse,
     WetlandFeature,
@@ -102,6 +103,78 @@ def list_parcels(
             centroid_lat=row.centroid_lat,
             recorded_acres=row.recorded_acres,
             calculated_acres=row.calculated_acres,
+        )
+        for row in result
+    ]
+
+    return parcels
+
+
+@router.get("/parcels/geojson", response_model=list[ParcelWithGeometry])
+def list_parcels_geojson(
+    bbox: Optional[str] = Query(
+        None,
+        description="Bounding box as minx,miny,maxx,maxy in WGS84 coordinates",
+        examples=["-98.8,29.8,-98.6,30.0"],
+    ),
+    limit: int = Query(200, ge=1, le=500, description="Maximum number of parcels to return"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get parcels with full geometry for map rendering.
+
+    Returns parcel polygons for displaying actual boundaries on the map.
+    Limited to 500 to keep response size manageable.
+    """
+    if bbox is None:
+        raise HTTPException(
+            status_code=400,
+            detail="bbox parameter is required. Format: minx,miny,maxx,maxy",
+        )
+
+    # Parse bbox
+    try:
+        parts = [float(x.strip()) for x in bbox.split(",")]
+        if len(parts) != 4:
+            raise ValueError("Expected 4 values")
+        minx, miny, maxx, maxy = parts
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid bbox format: {e}. Expected: minx,miny,maxx,maxy",
+        )
+
+    # Validate bbox
+    if minx >= maxx or miny >= maxy:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid bbox: min values must be less than max values",
+        )
+
+    # Query parcels intersecting bbox with geometry
+    query = text("""
+        SELECT
+            id,
+            source_id,
+            calculated_acres,
+            ST_AsGeoJSON(geom)::json as geometry
+        FROM parcels
+        WHERE geom && ST_MakeEnvelope(:minx, :miny, :maxx, :maxy, 4326)
+        ORDER BY calculated_acres DESC
+        LIMIT :limit
+    """)
+
+    result = db.execute(
+        query,
+        {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy, "limit": limit},
+    )
+
+    parcels = [
+        ParcelWithGeometry(
+            id=row.id,
+            source_id=row.source_id,
+            calculated_acres=row.calculated_acres,
+            geometry=row.geometry,
         )
         for row in result
     ]

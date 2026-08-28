@@ -19,6 +19,17 @@ class ParcelSummary(BaseModel):
         from_attributes = True
 
 
+class ParcelWithGeometry(BaseModel):
+    """Parcel data with geometry for map rendering."""
+    id: int
+    source_id: Optional[str] = None
+    calculated_acres: Optional[float] = None
+    geometry: dict  # GeoJSON
+
+    class Config:
+        from_attributes = True
+
+
 class ParcelDetail(BaseModel):
     """Full parcel data with geometry."""
     id: int
