@@ -237,6 +237,13 @@ export function Map({
     map.addControl(draw as unknown as maplibregl.IControl, 'top-left');
     drawRef.current = draw;
 
+    // Suppress missing sprite image errors (dark basemap references patterns we don't need)
+    map.on('styleimagemissing', (e) => {
+      // Create a transparent 1x1 placeholder for missing images
+      const placeholder = new Uint8Array(4); // RGBA = 0,0,0,0
+      map.addImage(e.id, { width: 1, height: 1, data: placeholder });
+    });
+
     map.on('load', () => {
       // Add parcel markers source (points for clickable markers)
       map.addSource('parcel-markers', {
