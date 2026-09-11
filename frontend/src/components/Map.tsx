@@ -164,27 +164,29 @@ export function Map({
   }, [setDrawMode]);
 
   // Handle draw changes - uses refs to avoid stale closures in event handlers
-  const handleDrawChange = useCallback(() => {
+  // This is called on draw.create, draw.delete, and draw.update events
+  const handleDrawChange = useCallback((e: { type: string; features?: unknown[] }) => {
     const draw = drawRef.current;
     if (!draw) return;
 
+    const isCreateEvent = e.type === 'draw.create';
     const allFeatures = draw.getAll();
     const excludes: GeoJSON.Geometry[] = [];
     const restores: GeoJSON.Geometry[] = [];
 
-    // Use the pendingDrawMode captured when the user clicked the draw button
-    // This prevents race conditions where drawModeRef gets reset before we can use it
+    // For create events, use the pendingDrawMode captured when the user clicked the draw button
+    // For other events (update, delete), just re-categorize existing tracked features
     const pendingMode = pendingDrawModeRef.current;
 
     // Track new features based on the captured pending mode
     allFeatures.features.forEach((feature) => {
       const id = feature.id as string;
 
-      // If it's a new feature, assign it based on the pending mode (captured when drawing started)
+      // If it's a new feature and this is a create event, assign it based on pending mode
       if (!excludeIdsRef.current.has(id) && !restoreIdsRef.current.has(id)) {
-        if (pendingMode === 'exclude') {
+        if (isCreateEvent && pendingMode === 'exclude') {
           excludeIdsRef.current.add(id);
-        } else if (pendingMode === 'restore') {
+        } else if (isCreateEvent && pendingMode === 'restore') {
           restoreIdsRef.current.add(id);
         }
       }
@@ -209,11 +211,14 @@ export function Map({
     // Use refs to ensure we call the latest callbacks
     onDrawChangeRef.current(excludes, restores);
 
-    // Clear the pending mode AFTER the feature has been categorized
-    // and reset the UI draw mode
-    if (pendingMode !== null) {
+    // Only reset draw mode after a successful create event
+    // Use setTimeout to ensure React state updates don't interfere with draw control
+    if (isCreateEvent && pendingMode !== null) {
       pendingDrawModeRef.current = null;
-      setDrawModeRef.current('none');
+      // Defer the mode reset to avoid race conditions with draw control events
+      setTimeout(() => {
+        setDrawModeRef.current('none');
+      }, 0);
     }
   }, []); // No dependencies - uses refs for all external values
 
@@ -508,12 +513,13 @@ export function Map({
     });
 
     // Handle draw events (mapbox-gl-draw adds custom events)
+    // Pass the event object so handleDrawChange knows the event type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (map as any).on('draw.create', handleDrawChange);
+    (map as any).on('draw.create', (e: any) => handleDrawChange(e));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (map as any).on('draw.delete', handleDrawChange);
+    (map as any).on('draw.delete', (e: any) => handleDrawChange(e));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (map as any).on('draw.update', handleDrawChange);
+    (map as any).on('draw.update', (e: any) => handleDrawChange(e));
 
     mapRef.current = map;
 
