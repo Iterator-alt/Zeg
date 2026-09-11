@@ -160,3 +160,4 @@ Deployed on Railway as three services: PostGIS database, FastAPI backend, React 
 ## Known limitations
 
 See `WRITEUP.md` for the full list, including performance behavior at scale and what we'd do differently with more time.
+
