@@ -143,6 +143,9 @@ export function Map({
   const restoreIdsRef = useRef<Set<string>>(new Set());
   // Track current draw mode in a ref to access in event handlers without re-registering them
   const drawModeRef = useRef<'none' | 'exclude' | 'restore'>(drawMode);
+  // Capture the draw mode when user STARTS drawing - this is the mode that will be applied
+  // to the feature when it's created, preventing race conditions with mode resets
+  const pendingDrawModeRef = useRef<'exclude' | 'restore' | null>(null);
   // Store callbacks in refs so event handlers always use the latest version
   const onDrawChangeRef = useRef(onDrawChange);
   const setDrawModeRef = useRef(setDrawMode);
@@ -168,22 +171,25 @@ export function Map({
     const allFeatures = draw.getAll();
     const excludes: GeoJSON.Geometry[] = [];
     const restores: GeoJSON.Geometry[] = [];
-    const currentMode = drawModeRef.current;
 
-    // Track new features based on current mode
+    // Use the pendingDrawMode captured when the user clicked the draw button
+    // This prevents race conditions where drawModeRef gets reset before we can use it
+    const pendingMode = pendingDrawModeRef.current;
+
+    // Track new features based on the captured pending mode
     allFeatures.features.forEach((feature) => {
       const id = feature.id as string;
 
-      // If it's a new feature, assign it to current mode
+      // If it's a new feature, assign it based on the pending mode (captured when drawing started)
       if (!excludeIdsRef.current.has(id) && !restoreIdsRef.current.has(id)) {
-        if (currentMode === 'exclude') {
+        if (pendingMode === 'exclude') {
           excludeIdsRef.current.add(id);
-        } else if (currentMode === 'restore') {
+        } else if (pendingMode === 'restore') {
           restoreIdsRef.current.add(id);
         }
       }
 
-      // Categorize feature
+      // Categorize feature based on tracking sets
       if (excludeIdsRef.current.has(id)) {
         excludes.push(feature.geometry as GeoJSON.Geometry);
       } else if (restoreIdsRef.current.has(id)) {
@@ -203,8 +209,10 @@ export function Map({
     // Use refs to ensure we call the latest callbacks
     onDrawChangeRef.current(excludes, restores);
 
-    // Reset to simple_select after drawing is complete
-    if (currentMode !== 'none') {
+    // Clear the pending mode AFTER the feature has been categorized
+    // and reset the UI draw mode
+    if (pendingMode !== null) {
+      pendingDrawModeRef.current = null;
       setDrawModeRef.current('none');
     }
   }, []); // No dependencies - uses refs for all external values
@@ -522,11 +530,16 @@ export function Map({
     if (!draw) return;
 
     if (drawMode === 'exclude' || drawMode === 'restore') {
+      // Capture the mode NOW when the user clicks the button
+      // This value will be used when draw.create fires to categorize the feature
+      pendingDrawModeRef.current = drawMode;
       draw.changeMode('draw_polygon');
       if (map) {
         map.getCanvas().style.cursor = 'crosshair';
       }
     } else {
+      // Only clear pendingDrawMode if it wasn't already consumed by handleDrawChange
+      // (handleDrawChange sets it to null after using it)
       draw.changeMode('simple_select');
       if (map) {
         map.getCanvas().style.cursor = 'grab';
